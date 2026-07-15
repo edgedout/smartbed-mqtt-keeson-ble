@@ -189,15 +189,15 @@ WorkingDirectory=/root/smartbed-mqtt-keeson-ble
 
 Environment=MQTTHOST=192.168.2.203
 Environment=MQTTPORT=1883
-Environment=MQTTUSER=
-Environment=MQTTPASSWORD=
+Environment=MQTTUSER= <insert_your_user>
+Environment=MQTTPASSWORD= <insert_your_password>
 
 ExecStart=/root/.nvm/versions/node/v20.20.2/bin/node /root/smartbed-mqtt-keeson-ble/dist/tsc/index.js
 
 Restart=always
 RestartSec=5
 
-User=root
+User= <insert_service_user>
 
 [Install]
 WantedBy=multi-user.target
@@ -224,13 +224,13 @@ Validated Nordic UART service:
 
 ```
 Service UUID:
-6e400001-b5a3-f393-e0a9-e50e24dcca9e
+xxxxxx-xxxxxxxx-xxxxx-xxxx
 
 Write Characteristic:
-6e400002-b5a3-f393-e0a9-e50e24dcca9e
+xxxxx-xxxx-xxxxx-xxxxx
 
 Notify Characteristic:
-6e400003-b5a3-f393-e0a9-e50e24dcca9e
+xxxxx-xxxxx-xxxx-xxxxxx
 ```
 
 ---
