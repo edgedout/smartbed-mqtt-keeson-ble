@@ -164,10 +164,10 @@ npm run build
 Run:
 
 ```
-MQTTHOST=192.168.2.203 \
+MQTTHOST=192.168.x.xxx \
 MQTTPORT=1883 \
-MQTTUSER="" \
-MQTTPASSWORD="" \
+MQTTUSER="insert_your_user" \
+MQTTPASSWORD="insert_your_password" \
 node dist/tsc/index.js
 ```
 
