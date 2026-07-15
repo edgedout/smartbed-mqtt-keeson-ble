@@ -1,177 +1,329 @@
-# Keeson Bed MQTT Integration
+# SmartBed MQTT Bridge
 
-A Home Assistant add-on to control Keeson smart beds via Bluetooth Low Energy (BLE) and MQTT.
+> Control compatible Tempur-Pedic and Keeson adjustable beds from Home Assistant using MQTT and an ESPHome Bluetooth Proxy.
+
+![Home Assistant](https://img.shields.io/badge/Home%20Assistant-MQTT-blue)
+![ESPHome](https://img.shields.io/badge/ESPHome-2026.x-green)
+![Node.js](https://img.shields.io/badge/Node.js-20+-brightgreen)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
+
+---
 
 ## Overview
 
-This project provides MQTT integration for Keeson smart beds, allowing you to control your Keeson bed through Home Assistant. It communicates with Keeson beds over BLE using ESPHome Bluetooth proxies.
+SmartBed MQTT Bridge connects compatible Bluetooth-enabled adjustable beds to Home Assistant.
+
+It communicates directly with the bed over BLE through an ESPHome Bluetooth Proxy and exposes all controls using MQTT Discovery, allowing the bed to appear as a native Home Assistant device.
+
+This fork modernizes the original project for current ESPHome Bluetooth Proxy firmware and has been fully validated on a real Tempur-Pedic Sleeptracker Gen2 adjustable base.
+
+---
+
+## Verified Hardware
+
+This project has been tested with:
+
+| Component | Version |
+|-----------|---------|
+| Tempur-Pedic Adjustable Base | Sleeptracker Gen2 |
+| BLE Device | KSBT03C201099417 |
+| ESPHome Bluetooth Proxy | 2026.5.1 |
+| ESPHome API | 1.14 |
+| Home Assistant | Current |
+| MQTT | Mosquitto |
+| Host | Raspberry Pi |
+
+---
 
 ## Features
 
-- **BLE Communication**: Connect to Keeson beds via Bluetooth Low Energy
-- **MQTT Integration**: Expose bed controls through MQTT for Home Assistant
-- **Multiple Keeson Models**: Supports KSBT, BaseI5, and BaseI4 Keeson bed controllers
-- **Motor Control**: Adjust head, back, legs, and feet positions
-- **Massage Functions**: Control massage features (if available on your bed)
-- **Preset Positions**: Quick access to favorite bed positions
-- **Home Assistant Discovery**: Automatic entity discovery in Home Assistant
+- Home Assistant MQTT Discovery
+- ESPHome Bluetooth Proxy support
+- ESPHome 2026.x compatible
+- Encrypted ESPHome API support
+- Automatic BLE discovery
+- Persistent BLE connections
+- Automatic reconnects
+- Raw Bluetooth V2 advertisement support
+- KSBT controller support
+- BaseI4 support
+- BaseI5 support
 
-## Supported Keeson Models
+### Bed Controls
 
-- KSBT (e.g., KSBT03C000015046)
-- BaseI5
-- BaseI4
+- Flat
+- Zero G
+- Anti-Snore
+- Memory Presets
+- Head Lift
+- Foot Lift
+- Lumbar Lift
+- Tilt
+- Massage
+- Massage Timer
 
-### Observed KSBT03 Characteristics (nRF Connect)
+---
 
-The following BLE characteristics have been observed for KSBT03 series devices through reverse-engineering using nRF Connect. This information is preliminary and represents advertisement-level data only.
+# Architecture
 
-**Observed Device:** `KSBT03C101071926`
+```
+                Bluetooth LE
+        ┌─────────────────────────┐
+        │ Tempur-Pedic / Keeson   │
+        └─────────────┬───────────┘
+                      │
+                      │
+              ESPHome Bluetooth Proxy
+                      │
+               ESPHome API (6053)
+                      │
+                      │
+          SmartBed MQTT Bridge (Node.js)
+                      │
+                    MQTT
+                      │
+               Home Assistant
+```
 
-**BLE Advertisement Details:**
-- **Device Name Pattern:** `KSBT03C` followed by numeric identifier
-- **Service UUID:** `6e400001-b5a3-f393-e0a9-e50e24dcca9e` (Nordic UART Service compatible)
-- **Connectable:** Yes
-- **Advertising Type:** Legacy
-- **BLE Flags:** 
-  - LE General Discoverable Mode
-  - BR/EDR Not Supported
-- **Advertising Interval:** ~157 ms
-- **Observed RSSI:** -68 to -73 dBm (stable)
+---
 
-**Important Notes:**
-- This information comes from nRF Connect BLE advertisement captures
-- Represents only the service-level characteristics currently known
-- The actual command protocol for controlling KSBT03 devices requires deeper protocol analysis beyond what is visible in advertisement data
-- KSBT03 devices are expected to work with the existing KSBT controller implementation in this project, as they share the same service UUID
+# Requirements
 
-## Requirements
+- Home Assistant
+- MQTT Broker
+- Dedicated ESPHome Bluetooth Proxy
+- Node.js 20+
+- Compatible Keeson / Tempur-Pedic adjustable bed
 
-- Home Assistant with MQTT broker (e.g., Mosquitto)
-- ESPHome Bluetooth proxy device(s) for BLE connectivity
-- Keeson smart bed with BLE capability
+---
 
-## Configuration
+# Why a Dedicated Bluetooth Proxy?
 
-Add your Keeson bed configuration in the add-on options:
+ESPHome Bluetooth advertisements can only be subscribed to by a single API client.
+
+This bridge requires ownership of the BLE advertisement stream.
+
+For best results:
+
+```
+Bed
+ │
+Dedicated ESPHome Proxy
+ │
+SmartBed MQTT Bridge
+ │
+MQTT
+ │
+Home Assistant
+```
+
+Do **not** connect the dedicated proxy to Home Assistant.
+
+Your other Bluetooth proxies can continue working normally.
+
+---
+
+# Configuration
+
+Example configuration:
 
 ```json
 {
-  "mqtt_host": "<auto_detect>",
-  "mqtt_port": "<auto_detect>",
-  "mqtt_user": "<auto_detect>",
-  "mqtt_password": "<auto_detect>",
-  "type": "keeson",
+  "mqtt_host": "192.168.x.xxx",
+  "mqtt_port": 1883,
+
   "bleProxies": [
     {
-      "host": "bluetooth-proxy.local"
+      "host": "esp32-bluetooth-proxy.local"
     }
   ],
+
   "keesonDevices": [
     {
-      "name": "KSBT03C000015046",
-      "friendlyName": "Keeson Bed"
+      "name": "KSBT0xxxxxxxxx",
+      "friendlyName": "Master Bed"
     }
   ]
 }
 ```
 
-### Configuration Options
+---
 
-- **mqtt_host**: MQTT broker hostname (auto-detected by default)
-- **mqtt_port**: MQTT broker port (auto-detected by default)
-- **mqtt_user**: MQTT username (auto-detected by default)
-- **mqtt_password**: MQTT password (auto-detected by default)
-- **type**: Must be set to "keeson"
-- **bleProxies**: List of ESPHome Bluetooth proxy devices
-  - **host**: Hostname or IP of the Bluetooth proxy
-  - **port**: (Optional) Custom port for ESPHome API
-  - **password**: (Optional) ESPHome API password
-  - **encryptionKey**: (Optional) ESPHome API encryption key
-  - **expectedServerName**: (Optional) Expected server name for validation
-- **keesonDevices**: List of Keeson beds to control
-  - **name**: BLE device name of your Keeson bed
-  - **friendlyName**: Friendly name to use in Home Assistant
+# Installation
 
-## Installation
+```
+git clone https://github.com/edgedout/smartbed-mqtt-keeson-ble.git
 
-1. Add this repository to your Home Assistant add-on store
-2. Install the "Keeson Bed MQTT" add-on
-3. Configure your MQTT broker settings (or use auto-detect)
-4. Add your ESPHome Bluetooth proxy details
-5. Add your Keeson bed device name and friendly name
-6. Start the add-on
+cd smartbed-mqtt-keeson-ble
 
-## Finding Your Keeson Bed Name
+npm install
 
-Your Keeson bed's BLE name typically starts with "KSBT" followed by numbers. You can find it by:
-
-1. Using a BLE scanner app on your phone
-2. Checking the ESPHome Bluetooth proxy logs
-3. Looking at the bed's control unit (may have a sticker with the device ID)
-
-## Docker Usage
-
-You can also run this as a standalone Docker container:
-
-```bash
-docker build -t keeson-bed-mqtt .
-docker run -v /path/to/data:/data keeson-bed-mqtt
+npm run build
 ```
 
-The `/data` directory should contain an `options.json` file with your configuration.
+Run:
 
-## Development
-
-### Building
-
-```bash
-yarn install
-yarn build
+```
+MQTTHOST=192.168.2.203 \
+MQTTPORT=1883 \
+MQTTUSER="" \
+MQTTPASSWORD="" \
+node dist/tsc/index.js
 ```
 
-### Testing
+---
 
-```bash
-yarn test
+# Running as a Service
+
+Example `systemd` unit:
+
+```ini
+[Unit]
+Description=SmartBed MQTT Bridge
+After=network-online.target
+
+[Service]
+Type=simple
+
+WorkingDirectory=/root/smartbed-mqtt-keeson-ble
+
+Environment=MQTTHOST=192.168.2.203
+Environment=MQTTPORT=1883
+Environment=MQTTUSER=
+Environment=MQTTPASSWORD=
+
+ExecStart=/root/.nvm/versions/node/v20.20.2/bin/node /root/smartbed-mqtt-keeson-ble/dist/tsc/index.js
+
+Restart=always
+RestartSec=5
+
+User=root
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-### Linting
+Enable:
 
-```bash
-yarn lint
+```
+sudo systemctl daemon-reload
+sudo systemctl enable --now smartbed-mqtt.service
 ```
 
-## Architecture
+Logs:
 
-- **BLE Layer**: Handles Bluetooth Low Energy communication with Keeson beds
-- **ESPHome Connection**: Connects to ESPHome Bluetooth proxies
-- **Keeson Controllers**: Brand-specific protocol implementation for different Keeson models
-- **MQTT Layer**: Publishes/subscribes to MQTT topics for Home Assistant integration
-- **Home Assistant Entities**: Auto-discovery and control of switches, buttons, covers, and sensors
+```
+journalctl -u smartbed-mqtt.service -f
+```
 
-## Troubleshooting
+---
+
+# Supported BLE Services
+
+Validated Nordic UART service:
+
+```
+Service UUID:
+6e400001-b5a3-f393-e0a9-e50e24dcca9e
+
+Write Characteristic:
+6e400002-b5a3-f393-e0a9-e50e24dcca9e
+
+Notify Characteristic:
+6e400003-b5a3-f393-e0a9-e50e24dcca9e
+```
+
+---
+
+# ESPHome Compatibility
+
+This fork adds compatibility with modern ESPHome releases.
+
+### Changes
+
+- frameAndSend() transport support
+- Raw BLE Advertisement V2 support
+- API 1.14 compatibility
+- Correct Bluetooth message IDs
+- Modern scanner state handling
+- KSBT03 discovery using BLE name only
+- Notification subscription support
+- Persistent BLE connections
+
+---
+
+# Current Status
+
+## Fully Working
+
+- Device discovery
+- BLE connection
+- Service discovery
+- Characteristic writes
+- Home Assistant discovery
+- All movement commands
+- Presets
+- Massage
+- Automatic reconnect
+
+## Known Limitations
+
+The tested KSBT03 firmware accepts notification subscriptions but does not emit position updates while the physical remote is used.
+
+Because of this, Home Assistant currently operates the bed as a command-only device rather than reporting live position.
+
+This appears to be a firmware limitation rather than an ESPHome limitation.
+
+---
+
+# Troubleshooting
 
 ### Bed not discovered
-- Ensure your ESPHome Bluetooth proxy is running and reachable
-- Check that the bed name in configuration matches the actual BLE device name
-- Verify the bed is powered on and in range of the Bluetooth proxy
 
-### Connection issues
-- Check MQTT broker is running and accessible
-- Verify MQTT credentials are correct
-- Review add-on logs for error messages
+- Verify BLE device name
+- Verify ESPHome proxy
+- Verify proxy is **not** connected to Home Assistant
+- Move proxy closer to bed
 
-### Unsupported device
-If you have a Keeson bed that's not recognized, check the logs for device information and contact the maintainer with:
-- BLE device name
-- Manufacturer data (from logs)
-- Service UUIDs (from logs)
+### MQTT entities missing
 
-## License
+- Verify MQTT Discovery
+- Restart Home Assistant
+- Verify broker connectivity
+
+### Commands do nothing
+
+Verify:
+
+- GATT services discovered
+- Correct write characteristic found
+- MQTT command published
+- BLE proxy connected
+
+---
+
+# Development
+
+```
+npm run build
+
+npm run test
+
+npm run lint
+```
+
+---
+
+# Acknowledgements
+
+Original project by Richard Hopton.
+
+Keeson support by phdindota.
+
+ESPHome 2026 compatibility, Tempur-Pedic Gen2 validation, Bluetooth Proxy modernization, and KSBT03 support by the contributors to this fork.
+
+---
+
+# License
 
 MIT
-
-## Credits
-
-Based on the original smartbed-mqtt project by Richard Hopton, refactored to focus exclusively on Keeson bed support.
